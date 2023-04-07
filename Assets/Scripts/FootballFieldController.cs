@@ -13,13 +13,12 @@ public class FootballFieldController : MonoBehaviour
     [SerializeField]
     private GameObject lineRendererPrefab;
     [SerializeField]
-    private Transform firstStartingPoint;
+    private DotController firstStartingPoint;
 
     private List<Transform> points = new();
-    private DotController previousDot;
     private int pointCount = 0;
     private bool anotherPlayerTurn;
-    private Transform currentStartingPoint;
+    private DotController currentStartingPoint;
 
     private void Awake()
     {
@@ -29,8 +28,13 @@ public class FootballFieldController : MonoBehaviour
         foreach (var dot in dotsList)
         {
             dot.OnDotClick += TryToDrawLine;
-            dot.OnDotClick += DisableWrongColliders;
+            dot.OnDotClick += ChangeCollidersEnabled;
         }
+    }
+
+    private void Start()
+    {
+        CreateFirstLinePoint();
     }
 
     private void OnDestroy()
@@ -38,13 +42,13 @@ public class FootballFieldController : MonoBehaviour
         foreach (var dot in dotsList)
         {
             dot.OnDotClick -= TryToDrawLine;
-            dot.OnDotClick -= DisableWrongColliders;
+            dot.OnDotClick -= ChangeCollidersEnabled;
         }
     }
 
     private void TryToDrawLine(DotController dot)
     {
-        if (dot != previousDot && CanDrawLine(previousDot, dot))
+        if (dot != currentStartingPoint && CanDrawLine(currentStartingPoint, dot))
         {
             pointCount++;
 
@@ -67,8 +71,34 @@ public class FootballFieldController : MonoBehaviour
 
             points.Add(dot.transform);
             lineRenderer.SetPosition(lineRenderer.positionCount-1, dot.transform.position);
-            previousDot = dot;
+
+            currentStartingPoint = dot;
+
+            CreateFirstLinePoint();
         }
+    }
+
+    private void CreateFirstLinePoint()
+    {
+        pointCount++;
+
+        if (pointCount < 2)
+        {
+            lineRenderer = Instantiate(lineRenderer);
+            lineRenderer.positionCount = 1;
+        }
+        else
+        {
+            lineRenderer.positionCount = pointCount;
+            pointCount = 0;
+
+            if (anotherPlayerTurn)
+            {
+                pointCount = 0;
+            }
+        }
+        points.Add(currentStartingPoint.transform);
+        lineRenderer.SetPosition(lineRenderer.positionCount - 1, currentStartingPoint.transform.position);
     }
 
     private bool CanDrawLine(DotController currentDot, DotController chosenDot)
@@ -81,20 +111,20 @@ public class FootballFieldController : MonoBehaviour
         List<int> listOfIndexes = new();
         if (chosenDot)
         {
-            var nieWiem3 = points.FindAll(x => x.transform.position == chosenDot.transform.position);//moze lepiej by bylo nie odnosic sie to position
+            var nieWiem3 = points.FindAll(x => x.transform.position == chosenDot.transform.position);//TODO: change transform position
             foreach (var x in nieWiem3)
             {
                 listOfIndexes.Add(points.IndexOf(chosenDot.transform));//wszystkie punkty sa takie same w liscie
             }
         }
 
-        foreach (var nieWiem2 in listOfIndexes)
-        {
-            if ((nieWiem2 - 1 >= 0 && lineRenderer.GetPosition(nieWiem2 - 1) == currentDot.transform.position) || (lineRenderer.GetPosition(nieWiem2 + 1) == currentDot.transform.position))
-            {
-                return false;
-            }
-        }
+        //foreach (var nieWiem2 in listOfIndexes)
+        //{
+        //    if ((nieWiem2 - 1 >= 0 && lineRenderer.GetPosition(nieWiem2 - 1) == currentDot.transform.position) || (lineRenderer.GetPosition(nieWiem2 + 1) == currentDot.transform.position))
+        //    {
+        //        return false;
+        //    }
+        //}
         return true;
     }
 
@@ -104,13 +134,13 @@ public class FootballFieldController : MonoBehaviour
         points.Clear();
     }
 
-    public void DisableWrongColliders(DotController currentDot)//nazwa
+    public void ChangeCollidersEnabled(DotController currentDot)
     {
         foreach (var dot in dotsList)
         {
             if ((dot.transform.position - currentDot.transform.position).magnitude > maxDistanceToClickableDot)
             {
-                dot.GetComponent<Collider2D>().enabled = false;//bez get component
+                dot.GetComponent<Collider2D>().enabled = false;//TODO: change get component
             }
             else
             {

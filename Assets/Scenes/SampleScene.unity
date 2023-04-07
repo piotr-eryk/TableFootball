@@ -6313,6 +6313,7 @@ MonoBehaviour:
   lineRenderer: {fileID: 1636312785}
   maxDistanceToClickableDot: 1.5
   lineRendererPrefab: {fileID: 6370827495596191700, guid: c2e4fa108add3cb459c02e80d8a7afa8, type: 3}
+  firstStartingPoint: {fileID: 131068382}
 --- !u!1 &1521753441
 GameObject:
   m_ObjectHideFlags: 0
