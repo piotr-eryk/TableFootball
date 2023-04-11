@@ -1,29 +1,36 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Pool;
 
 public class FootballFieldController : MonoBehaviour
 {
     [SerializeField]
     private List<DotController> dotsList;
     [SerializeField]
-    private LineRenderer lineRenderer;
+    private LineRenderer firstPlayerLine;
+    [SerializeField]
+    private LineRenderer secondPlayerLine;
+
     [SerializeField]
     private float maxDistanceToClickableDot;
-    [SerializeField]
-    private GameObject lineRendererPrefab;
     [SerializeField]
     private DotController firstStartingPoint;
 
     private List<Transform> points = new();
     private int pointCount = 0;
-    private bool anotherPlayerTurn;
+    private bool anotherPlayerTurn = true;
     private DotController currentStartingPoint;
+    private LineRenderer currentPlayerLine;
+
+    private ObjectPool<LineRenderer> firstPlayerLinePool;
+    private ObjectPool<LineRenderer> secondPlayerLinePool;
 
     private void Awake()
     {
+        currentPlayerLine = firstPlayerLine;
         currentStartingPoint = firstStartingPoint;
-        lineRenderer.positionCount = 0;
+        firstPlayerLine.positionCount = 0;
 
         foreach (var dot in dotsList)
         {
@@ -35,6 +42,14 @@ public class FootballFieldController : MonoBehaviour
     private void Start()
     {
         CreateFirstLinePoint();
+
+        firstPlayerLinePool = new ObjectPool<LineRenderer>(createFunc: () => Instantiate(firstPlayerLine),
+actionOnGet: (obj) => obj.gameObject.SetActive(true), actionOnRelease: (obj) => obj.gameObject.SetActive(false),
+actionOnDestroy: (obj) => Destroy(obj), collectionCheck: false, defaultCapacity: 20, maxSize: 50);
+
+        secondPlayerLinePool = new ObjectPool<LineRenderer>(createFunc: () => Instantiate(secondPlayerLine),
+actionOnGet: (obj) => obj.gameObject.SetActive(true), actionOnRelease: (obj) => obj.gameObject.SetActive(false),
+actionOnDestroy: (obj) => Destroy(obj), collectionCheck: false, defaultCapacity: 20, maxSize: 50);
     }
 
     private void OnDestroy()
@@ -46,20 +61,31 @@ public class FootballFieldController : MonoBehaviour
         }
     }
 
+    private void OnGetObject()
+    {
+        gameObject.SetActive(true);
+    }
+
     private void TryToDrawLine(DotController dot)
     {
         if (dot != currentStartingPoint && CanDrawLine(currentStartingPoint, dot))
         {
+            if (anotherPlayerTurn)
+            {
+                currentPlayerLine = currentPlayerLine == firstPlayerLine ? secondPlayerLine : firstPlayerLine;
+            }
+
+
             pointCount++;
 
             if (pointCount < 2)
             {
-                lineRenderer = Instantiate(lineRenderer);
-                lineRenderer.positionCount = 1;
+                firstPlayerLine = firstPlayerLinePool.Get();
+                firstPlayerLine.positionCount = 1;
             }
             else
             {
-                lineRenderer.positionCount = pointCount;
+                firstPlayerLine.positionCount = pointCount;
                 pointCount = 0;
 
                 if (anotherPlayerTurn)
@@ -70,11 +96,11 @@ public class FootballFieldController : MonoBehaviour
 
 
             points.Add(dot.transform);
-            lineRenderer.SetPosition(lineRenderer.positionCount-1, dot.transform.position);
+            firstPlayerLine.SetPosition(firstPlayerLine.positionCount-1, dot.transform.position);
 
             currentStartingPoint = dot;
-
-            CreateFirstLinePoint();
+            Debug.Log(currentPlayerLine.name + " " + anotherPlayerTurn);
+            CreateFirstLinePoint();//jakos struktura mi tu nie pasuje
         }
     }
 
@@ -84,12 +110,12 @@ public class FootballFieldController : MonoBehaviour
 
         if (pointCount < 2)
         {
-            lineRenderer = Instantiate(lineRenderer);
-            lineRenderer.positionCount = 1;
+            firstPlayerLine = Instantiate(firstPlayerLine);
+            firstPlayerLine.positionCount = 1;
         }
         else
         {
-            lineRenderer.positionCount = pointCount;
+            firstPlayerLine.positionCount = pointCount;
             pointCount = 0;
 
             if (anotherPlayerTurn)
@@ -98,7 +124,7 @@ public class FootballFieldController : MonoBehaviour
             }
         }
         points.Add(currentStartingPoint.transform);
-        lineRenderer.SetPosition(lineRenderer.positionCount - 1, currentStartingPoint.transform.position);
+        firstPlayerLine.SetPosition(firstPlayerLine.positionCount - 1, currentStartingPoint.transform.position);
     }
 
     private bool CanDrawLine(DotController currentDot, DotController chosenDot)
@@ -114,13 +140,13 @@ public class FootballFieldController : MonoBehaviour
             var nieWiem3 = points.FindAll(x => x.transform.position == chosenDot.transform.position);//TODO: change transform position
             foreach (var x in nieWiem3)
             {
-                listOfIndexes.Add(points.IndexOf(chosenDot.transform));//wszystkie punkty sa takie same w liscie
+                listOfIndexes.Add(points.IndexOf(chosenDot.transform));
             }
         }
 
-        //foreach (var nieWiem2 in listOfIndexes)
+        //foreach (var x in listOfIndexes)
         //{
-        //    if ((nieWiem2 - 1 >= 0 && lineRenderer.GetPosition(nieWiem2 - 1) == currentDot.transform.position) || (lineRenderer.GetPosition(nieWiem2 + 1) == currentDot.transform.position))
+        //    if ((x - 1 >= 0 && lineRenderer.GetPosition(x - 1) == currentDot.transform.position) || (lineRenderer.GetPosition(x + 1) == currentDot.transform.position))
         //    {
         //        return false;
         //    }
@@ -130,7 +156,7 @@ public class FootballFieldController : MonoBehaviour
 
     public void ResetAllPoints()
     {
-        lineRenderer.positionCount = 0;
+        firstPlayerLine.positionCount = 0;
         points.Clear();
     }
 
